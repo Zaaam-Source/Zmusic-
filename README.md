@@ -74,18 +74,6 @@ Dibangun dengan Kotlin, Jetpack Compose, dan Material 3. Menggunakan [NewPipeExt
 
 ---
 
-## Build
-
-```bash
-git clone https://github.com/Zaaam-Source/Zmusic-.git
-cd Zmusic-
-./gradlew assembleDebug
-```
-
-APK hasil build ada di `app/build/outputs/apk/debug/`.
-
----
-
 ## Struktur Project
 
 ```
