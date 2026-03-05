@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zmusic — Android Music Player Source Code</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --purple: #7c3aed; --pl: #a78bfa; --cyan: #38bdf8;
+    --pink: #f472b6; --amber: #f59e0b; --green: #10b981;
+    --bg: #080810; --card: #0f0e1a; --border: rgba(255,255,255,0.08);
+    --text: #f0f0ff; --muted: rgba(200,200,220,0.55);
+  }
+  html { scroll-behavior: smooth; }
+  body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; overflow-x: hidden; line-height: 1.6; }
+  ::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-track { background: var(--bg); } ::-webkit-scrollbar-thumb { background: var(--purple); border-radius: 10px; }
+
+  /* NAV */
+  nav { position: fixed; top: 0; left: 0; right: 0; z-index: 200; display: flex; align-items: center; justify-content: space-between; padding: 14px 6%; background: rgba(8,8,16,0.85); backdrop-filter: blur(20px); border-bottom: 1px solid var(--border); }
+  .nav-logo { font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 800; background: linear-gradient(135deg, var(--pl), var(--cyan)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  .nav-links { display: flex; gap: 28px; }
+  .nav-links a { font-size: 13px; color: var(--muted); text-decoration: none; transition: color .2s; }
+  .nav-links a:hover { color: var(--text); }
+  .nav-btn { display: inline-flex; align-items: center; gap: 7px; background: linear-gradient(135deg, var(--purple), var(--cyan)); border: none; border-radius: 100px; padding: 9px 20px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; color: #fff; cursor: pointer; text-decoration: none; transition: opacity .2s, transform .2s; }
+  .nav-btn:hover { opacity: .85; transform: scale(.97); }
+  @media(max-width:600px) { .nav-links { display: none; } }
+
+  /* BLOBS */
+  .blobs { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+  .blob { position: absolute; border-radius: 50%; filter: blur(90px); }
+  .b1 { width: 500px; height: 500px; background: radial-gradient(circle,#7c3aed55,transparent 70%); top: -100px; left: -100px; }
+  .b2 { width: 400px; height: 400px; background: radial-gradient(circle,#06b6d444,transparent 70%); bottom: 0; left: 40%; }
+  .b3 { width: 300px; height: 300px; background: radial-gradient(circle,#f472b633,transparent 70%); top: 20%; right: -50px; }
+  .grid-bg { position: absolute; inset: 0; background-image: linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px); background-size: 60px 60px; }
+
+  /* SECTION COMMON */
+  section { position: relative; z-index: 1; }
+  .section-inner { max-width: 1100px; margin: 0 auto; padding: 90px 6%; }
+  .section-tag { display: inline-flex; align-items: center; gap: 8px; font-size: 11px; color: var(--pl); text-transform: uppercase; letter-spacing: .12em; font-weight: 500; margin-bottom: 14px; }
+  .section-tag::before { content: ''; width: 20px; height: 1px; background: var(--pl); }
+  h2 { font-family: 'Syne', sans-serif; font-size: clamp(28px,5vw,46px); font-weight: 800; line-height: 1.1; letter-spacing: -1px; margin-bottom: 14px; }
+  .sdesc { font-size: 15px; color: var(--muted); font-weight: 300; max-width: 520px; margin-bottom: 52px; }
+
+  /* BADGE */
+  .badge { display: inline-flex; align-items: center; gap: 7px; background: rgba(124,58,237,.15); border: 1px solid rgba(124,58,237,.4); border-radius: 100px; padding: 6px 16px; margin-bottom: 24px; }
+  .badge-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--pl); animation: blink 2s infinite; }
+  @keyframes blink { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.7)} }
+  .badge span { font-size: 12px; color: var(--pl); font-weight: 500; letter-spacing: .06em; text-transform: uppercase; }
+
+  /* BUTTONS */
+  .btn-p { display: inline-flex; align-items: center; gap: 8px; background: linear-gradient(135deg,var(--purple),var(--cyan)); border: none; border-radius: 12px; padding: 14px 28px; font-family: 'DM Sans',sans-serif; font-size: 15px; font-weight: 500; color: #fff; cursor: pointer; text-decoration: none; transition: opacity .2s,transform .15s; box-shadow: 0 8px 32px rgba(124,58,237,.35); }
+  .btn-p:hover { opacity: .88; transform: translateY(-2px); }
+  .btn-s { display: inline-flex; align-items: center; gap: 8px; background: rgba(255,255,255,.06); border: 1px solid var(--border); border-radius: 12px; padding: 14px 28px; font-family: 'DM Sans',sans-serif; font-size: 15px; color: var(--muted); text-decoration: none; transition: all .2s; }
+  .btn-s:hover { background: rgba(255,255,255,.1); color: var(--text); transform: translateY(-2px); }
+
+  /* PHONE BASE */
+  .phone-base { background: #13131f; border-radius: 32px; border: 1.5px solid rgba(255,255,255,.12); overflow: hidden; box-shadow: 0 30px 60px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.07); position: relative; }
+  .notch { width: 55px; height: 18px; background: var(--bg); border-radius: 0 0 10px 10px; margin: 0 auto; }
+  .mini-bar { position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg,var(--purple),var(--cyan),var(--pink)); }
+
+  /* VIZ BARS */
+  .vbar { width: 3px; border-radius: 2px; background: linear-gradient(to top,var(--purple),var(--cyan)); animation: vb var(--d) ease-in-out infinite alternate; }
+  @keyframes vb { from{transform:scaleY(.2)} to{transform:scaleY(1)} }
+
+  /* ═══ HERO ═══ */
+  .hero { min-height: 100vh; display: flex; align-items: center; padding: 110px 6% 70px; gap: 50px; flex-wrap: wrap; overflow: hidden; }
+  .hero-l { flex: 1 1 320px; max-width: 540px; }
+  h1 { font-family: 'Syne',sans-serif; font-size: clamp(46px,8vw,78px); font-weight: 800; line-height: .95; letter-spacing: -2px; margin-bottom: 20px; }
+  h1 .grad { background: linear-gradient(135deg,var(--pl),var(--cyan),var(--pink)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  h1 .sub { display: block; font-size: clamp(18px,3.5vw,34px); font-weight: 700; color: rgba(200,200,220,.4); letter-spacing: -.5px; margin-top: 4px; }
+  .hero-desc { font-size: clamp(14px,2vw,17px); color: var(--muted); font-weight: 300; line-height: 1.7; margin-bottom: 28px; max-width: 460px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 34px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; background: rgba(255,255,255,.05); border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px; font-size: 13px; color: rgba(220,220,240,.8); }
+  .hero-cta { display: flex; gap: 12px; flex-wrap: wrap; }
+  .hero-r { flex: 0 0 auto; display: flex; justify-content: center; align-items: center; position: relative; padding: 40px 50px; }
+
+  .hero-phone { width: 210px; height: 430px; transition: transform .4s; }
+  .hero-phone:hover { transform: rotate(0deg) scale(1.02) !important; }
+
+  .hf { position: absolute; background: rgba(15,14,26,.92); border: 1px solid rgba(255,255,255,.1); border-radius: 12px; padding: 9px 13px; backdrop-filter: blur(10px); white-space: nowrap; }
+  .hf1 { top: 55px; right: 0; transform: rotate(-3deg); animation: fa 3s ease-in-out infinite; }
+  .hf2 { bottom: 90px; left: 0; transform: rotate(2deg); animation: fb 4s ease-in-out infinite; }
+  .hf3 { top: 45%; right: -10px; transform: rotate(-1deg) translateY(-50%); animation: fc 3.5s ease-in-out infinite; }
+  @keyframes fa { 0%,100%{transform:rotate(-3deg) translateY(0)} 50%{transform:rotate(-3deg) translateY(-6px)} }
+  @keyframes fb { 0%,100%{transform:rotate(2deg) translateY(0)} 50%{transform:rotate(2deg) translateY(-8px)} }
+  @keyframes fc { 0%,100%{transform:rotate(-1deg) translateY(-50%)} 50%{transform:rotate(-1deg) translateY(calc(-50% - 5px))} }
+  .hf-l { font-size: 9px; color: rgba(200,200,220,.4); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 2px; }
+  .hf-v { font-family: 'Syne',sans-serif; font-size: 14px; font-weight: 700; }
+  .hf-s { font-size: 9px; color: var(--pl); }
+
+  /* ═══ SCREENSHOTS ═══ */
+  .ss-section { background: linear-gradient(180deg,var(--bg),#0c0b18); overflow: hidden; }
+  .ss-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 44px; }
+  .stab { display: inline-flex; align-items: center; gap: 7px; background: rgba(255,255,255,.05); border: 1px solid var(--border); border-radius: 100px; padding: 8px 18px; font-size: 13px; color: var(--muted); cursor: pointer; transition: all .2s; user-select: none; }
+  .stab:hover { border-color: rgba(124,58,237,.4); color: var(--text); }
+  .stab.active { background: rgba(124,58,237,.2); border-color: rgba(124,58,237,.6); color: var(--pl); }
+
+  .devices-row { display: flex; gap: 20px; align-items: flex-end; overflow-x: auto; padding: 20px 4px 30px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .devices-row::-webkit-scrollbar { display: none; }
+
+  .dp { flex-shrink: 0; width: 175px; cursor: pointer; transition: opacity .3s; }
+  .dp .frame { width: 175px; height: 355px; transition: transform .3s, box-shadow .3s; }
+  .dp:hover .frame { transform: translateY(-8px) scale(1.03); box-shadow: 0 50px 80px rgba(0,0,0,.5),0 0 0 1px rgba(124,58,237,.3) !important; }
+  .dp.feat { width: 195px; }
+  .dp.feat .frame { width: 195px; height: 397px; border-color: rgba(124,58,237,.4) !important; box-shadow: 0 40px 80px rgba(0,0,0,.6),0 0 0 2px rgba(124,58,237,.3) !important; }
+  .dp-lbl { text-align: center; margin-top: 10px; font-size: 11px; color: var(--muted); }
+  .dp-lbl.hl { color: var(--pl); font-weight: 500; }
+
+  .sc { padding: 6px 10px; }
+
+  /* screen: player */
+  .scp .sc-h { display: flex; justify-content: space-between; font-size: 9px; color: rgba(255,255,255,.3); letter-spacing: .08em; text-transform: uppercase; margin-bottom: 8px; }
+  .scp .art { width: 100%; aspect-ratio: 1; border-radius: 12px; background: linear-gradient(135deg,#1e0a3c,#0a1a3c); display: flex; align-items: center; justify-content: center; font-size: 26px; margin-bottom: 8px; position: relative; overflow: hidden; }
+  .scp .rings { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+  .scp .r { position: absolute; border-radius: 50%; border: 1px solid rgba(167,139,250,.15); }
+  .scp .r1 { width: 50px; height: 50px; }
+  .scp .r2 { width: 90px; height: 90px; border-color: rgba(56,189,248,.1); }
+  .scp .viz { display: flex; gap: 2px; align-items: flex-end; height: 13px; position: absolute; bottom: 6px; left: 8px; }
+  .scp .st { font-size: 11px; font-weight: 600; margin-bottom: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .scp .sa { font-size: 9px; color: var(--muted); margin-bottom: 6px; }
+  .scp .pg { height: 2px; background: rgba(255,255,255,.1); border-radius: 1px; margin-bottom: 8px; }
+  .scp .pf { height: 100%; background: linear-gradient(90deg,var(--purple),var(--cyan)); border-radius: 1px; }
+  .scp .ct { display: flex; justify-content: space-between; align-items: center; }
+  .scp .cb { width: 22px; height: 22px; border-radius: 50%; background: rgba(255,255,255,.06); display: flex; align-items: center; justify-content: center; font-size: 9px; }
+  .scp .cp { width: 32px; height: 32px; background: linear-gradient(135deg,var(--purple),var(--cyan)); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; box-shadow: 0 4px 12px rgba(124,58,237,.5); }
+
+  /* screen: home */
+  .sch .gr { font-size: 8px; color: rgba(255,255,255,.3); }
+  .sch .nm { font-size: 12px; font-weight: 600; margin-bottom: 6px; }
+  .sch .sec { font-size: 8px; color: rgba(255,255,255,.3); letter-spacing: .08em; text-transform: uppercase; margin-bottom: 6px; }
+  .sch .row { display: flex; gap: 5px; margin-bottom: 8px; flex-wrap: wrap; }
+  .sch .tag { font-size: 8px; padding: 3px 7px; border-radius: 100px; background: rgba(124,58,237,.2); color: var(--pl); border: 1px solid rgba(124,58,237,.3); }
+  .sch .cards { display: flex; gap: 5px; overflow: hidden; margin-bottom: 10px; }
+  .sch .card { flex-shrink: 0; width: 68px; border-radius: 9px; background: linear-gradient(135deg,#1a1030,#0d1525); border: 1px solid rgba(255,255,255,.07); padding: 6px; }
+  .sch .ca { width: 100%; aspect-ratio: 1; border-radius: 6px; background: linear-gradient(135deg,#2d1050,#103050); display: flex; align-items: center; justify-content: center; font-size: 17px; margin-bottom: 4px; }
+  .sch .ct { font-size: 8px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sch .cs { font-size: 7px; color: var(--muted); }
+
+  /* screen: mood */
+  .scm .mt { font-size: 12px; font-weight: 600; margin-bottom: 3px; }
+  .scm .ms { font-size: 9px; color: var(--muted); margin-bottom: 9px; }
+  .scm .mg { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+  .scm .mi { border-radius: 10px; padding: 8px; text-align: center; border: 1px solid rgba(255,255,255,.07); cursor: pointer; }
+  .scm .me { font-size: 18px; display: block; margin-bottom: 2px; }
+  .scm .mn { font-size: 9px; font-weight: 500; }
+
+  /* screen: stats */
+  .scs .tt { font-size: 12px; font-weight: 600; margin-bottom: 6px; }
+  .scs .big { font-family: 'Syne',sans-serif; font-size: 26px; font-weight: 800; background: linear-gradient(135deg,var(--pl),var(--cyan)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; line-height: 1; margin-bottom: 2px; }
+  .scs .sub { font-size: 9px; color: var(--muted); margin-bottom: 9px; }
+  .scs .br { margin-bottom: 6px; }
+  .scs .bl { display: flex; justify-content: space-between; font-size: 9px; margin-bottom: 2px; }
+  .scs .bl span:last-child { color: var(--pl); }
+  .scs .bt { height: 4px; background: rgba(255,255,255,.08); border-radius: 2px; }
+  .scs .bf { height: 100%; background: linear-gradient(90deg,var(--purple),var(--cyan)); border-radius: 2px; }
+
+  /* screen: library */
+  .scl .lt { font-size: 12px; font-weight: 600; margin-bottom: 8px; }
+  .scl .li { display: flex; align-items: center; gap: 7px; padding: 6px; border-radius: 8px; background: rgba(255,255,255,.04); margin-bottom: 5px; border: 1px solid rgba(255,255,255,.06); }
+  .scl .la { width: 30px; height: 30px; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; }
+  .scl .ln { font-size: 10px; font-weight: 500; }
+  .scl .lc { font-size: 8px; color: var(--muted); }
+
+  /* screen: wrapped */
+  .scw { background: linear-gradient(160deg,#1a0a3c,#0a1040,#0a2030) !important; }
+  .scw .yr { font-family: 'Syne',sans-serif; font-size: 38px; font-weight: 800; opacity: .1; position: absolute; top: 8px; right: 6px; line-height: 1; }
+  .scw .wt { font-size: 9px; color: rgba(255,255,255,.45); letter-spacing: .1em; text-transform: uppercase; margin-bottom: 3px; position: relative; z-index: 1; }
+  .scw .wb { font-family: 'Syne',sans-serif; font-size: 17px; font-weight: 800; position: relative; z-index: 1; margin-bottom: 10px; line-height: 1.2; }
+  .scw .wr { display: flex; gap: 5px; margin-bottom: 8px; position: relative; z-index: 1; }
+  .scw .ws { flex: 1; background: rgba(255,255,255,.1); border-radius: 8px; padding: 6px; text-align: center; }
+  .scw .wv { font-family: 'Syne',sans-serif; font-size: 14px; font-weight: 700; background: linear-gradient(135deg,var(--pl),var(--cyan)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  .scw .wl { font-size: 7px; color: rgba(255,255,255,.35); margin-top: 1px; }
+  .scw .wmr { display: flex; gap: 4px; position: relative; z-index: 1; }
+  .scw .wm { flex: 1; background: rgba(255,255,255,.08); border-radius: 7px; padding: 5px; text-align: center; }
+  .scw .we { font-size: 15px; display: block; }
+  .scw .wn { font-size: 7px; color: rgba(255,255,255,.4); }
+
+  /* ═══ DEMO ═══ */
+  .demo-section { background: var(--bg); }
+  .demo-wrap { display: flex; gap: 40px; align-items: center; flex-wrap: wrap; }
+  .demo-l { flex: 1 1 280px; }
+  .demo-r { flex: 0 0 auto; display: flex; justify-content: center; }
+  .demo-phone { width: 210px; height: 430px; }
+  .demo-screens { position: relative; height: 100%; }
+  .dsc { position: absolute; inset: 0; padding: 0 14px 14px; opacity: 0; transform: translateX(18px); transition: opacity .4s,transform .4s; pointer-events: none; }
+  .dsc.on { opacity: 1; transform: translateX(0); pointer-events: all; }
+  .dnav { display: flex; flex-direction: column; gap: 10px; }
+  .di { display: flex; align-items: center; gap: 14px; padding: 14px 18px; border-radius: 12px; cursor: pointer; border: 1px solid var(--border); background: rgba(255,255,255,.03); transition: all .2s; }
+  .di:hover { border-color: rgba(124,58,237,.3); background: rgba(124,58,237,.05); }
+  .di.on { border-color: rgba(124,58,237,.5); background: rgba(124,58,237,.1); }
+  .di-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+  .di-t h4 { font-size: 14px; font-weight: 500; margin-bottom: 2px; }
+  .di-t p { font-size: 12px; color: var(--muted); }
+
+  /* ═══ FEATURES ═══ */
+  .feat-section { background: #0c0b18; }
+  .feat-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(230px,1fr)); gap: 14px; }
+  .fc { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 22px; transition: all .2s; }
+  .fc:hover { border-color: rgba(124,58,237,.4); transform: translateY(-3px); }
+  .fi { width: 42px; height: 42px; border-radius: 11px; display: flex; align-items: center; justify-content: center; font-size: 18px; margin-bottom: 12px; }
+  .fc h3 { font-family: 'Syne',sans-serif; font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+  .fc p { font-size: 13px; color: var(--muted); line-height: 1.6; }
+
+  /* ═══ TECH ═══ */
+  .tech-section { background: var(--bg); }
+  .tech-grid { display: flex; flex-wrap: wrap; gap: 10px; }
+  .tp { display: inline-flex; align-items: center; gap: 8px; background: rgba(255,255,255,.04); border: 1px solid var(--border); border-radius: 100px; padding: 8px 18px; font-size: 13px; color: rgba(220,220,240,.7); transition: all .2s; cursor: default; }
+  .tp:hover { border-color: var(--pl); color: var(--text); transform: translateY(-2px); }
+
+  /* ═══ PRICE ═══ */
+  .price-section { background: linear-gradient(180deg,#0c0b18,var(--bg)); }
+  .price-card { background: var(--card); border: 1px solid rgba(124,58,237,.3); border-radius: 24px; padding: 40px; text-align: center; max-width: 460px; margin: 0 auto; position: relative; overflow: hidden; }
+  .price-card::before { content:''; position:absolute; top:-60px; left:50%; transform:translateX(-50%); width:200px; height:200px; background:radial-gradient(circle,rgba(124,58,237,.2),transparent 70%); pointer-events:none; }
+  .pp { display: inline-block; background: linear-gradient(135deg,var(--purple),var(--cyan)); border-radius: 100px; padding: 4px 16px; font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 20px; }
+  .pa { font-family: 'Syne',sans-serif; font-size: clamp(46px,8vw,70px); font-weight: 800; background: linear-gradient(135deg,var(--pl),var(--cyan)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; line-height: 1; margin-bottom: 4px; }
+  .pn { font-size: 13px; color: var(--muted); margin-bottom: 28px; }
+  .pi { text-align: left; display: flex; flex-direction: column; gap: 10px; margin-bottom: 32px; }
+  .pit { display: flex; align-items: center; gap: 10px; font-size: 14px; color: rgba(220,220,240,.8); }
+  .pit::before { content:'✓'; color:var(--pl); font-weight:700; }
+  .btn-buy { display:flex; align-items:center; justify-content:center; gap:10px; width:100%; background:linear-gradient(135deg,var(--purple),var(--cyan)); border:none; border-radius:14px; padding:16px; font-family:'DM Sans',sans-serif; font-size:16px; font-weight:500; color:#fff; cursor:pointer; text-decoration:none; transition:opacity .2s,transform .15s; box-shadow:0 10px 40px rgba(124,58,237,.4); }
+  .btn-buy:hover { opacity:.88; transform:translateY(-2px); }
+
+  /* ═══ CONTACT ═══ */
+  .contact-section { background: #0c0b18; }
+  .ccard { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 36px; display: flex; align-items: center; gap: 28px; flex-wrap: wrap; max-width: 680px; margin: 0 auto; }
+  .tg-ic { width: 68px; height: 68px; border-radius: 50%; background: linear-gradient(135deg,#229ED9,#0088cc); display: flex; align-items: center; justify-content: center; font-size: 30px; flex-shrink: 0; box-shadow: 0 8px 24px rgba(34,158,217,.3); animation: tp 3s infinite; }
+  @keyframes tp { 0%,100%{box-shadow:0 8px 24px rgba(34,158,217,.3)} 50%{box-shadow:0 8px 40px rgba(34,158,217,.5)} }
+  .ci h3 { font-family: 'Syne',sans-serif; font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+  .ci p { font-size: 14px; color: var(--muted); margin-bottom: 18px; }
+  .btn-tg { display: inline-flex; align-items: center; gap: 8px; background: linear-gradient(135deg,#229ED9,#0088cc); border: none; border-radius: 100px; padding: 12px 28px; font-family: 'DM Sans',sans-serif; font-size: 14px; font-weight: 500; color: #fff; cursor: pointer; text-decoration: none; transition: opacity .2s,transform .15s; box-shadow: 0 6px 20px rgba(34,158,217,.3); }
+  .btn-tg:hover { opacity:.88; transform:scale(.98); }
+
+  footer { text-align:center; padding:28px 5%; font-size:12px; color:rgba(200,200,220,.25); border-top:1px solid var(--border); position:relative; z-index:1; }
+  footer a { color:rgba(167,139,250,.5); text-decoration:none; }
+  .rainbow-bar { height:3px; background:linear-gradient(90deg,var(--purple),var(--cyan),var(--pink),var(--amber)); position:fixed; bottom:0; left:0; right:0; z-index:100; }
+
+  /* REVEAL */
+  .reveal { opacity:0; transform:translateY(28px); transition:opacity .6s,transform .6s; }
+  .reveal.vis { opacity:1; transform:translateY(0); }
+
+  @media(max-width:640px) {
+    .hero { flex-direction:column; padding:90px 5% 50px; gap:36px; }
+    .hero-r { display:none; }
+    .demo-wrap { flex-direction:column; }
+    .demo-r { width:100%; }
+    .ccard { flex-direction:column; text-align:center; }
+    .ci { text-align:center; }
+  }
+  @media(max-width:480px) {
+    .dp { width:148px; } .dp .frame { width:148px; height:300px; }
+    .dp.feat { width:162px; } .dp.feat .frame { width:162px; height:330px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">Zmusic</div>
+  <div class="nav-links">
+    <a href="#screenshots">Screenshots</a>
+    <a href="#fitur">Fitur</a>
+    <a href="#harga">Harga</a>
+    <a href="#kontak">Kontak</a>
+  </div>
+  <a href="https://t.me/azm101222" target="_blank" class="nav-btn">✈️ Hubungi</a>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="blobs"><div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div></div>
+  <div class="grid-bg"></div>
+
+  <div class="hero-l reveal">
+    <div class="badge"><div class="badge-dot"></div><span>Android Source Code</span></div>
+    <h1><span class="grad">Zmusic</span><span class="sub">Music Player App</span></h1>
+    <p class="hero-desc">Source code aplikasi pemutar musik Android berbasis YouTube streaming — fitur lengkap setara Spotify, arsitektur modern, siap kembangkan.</p>
+    <div class="chips">
+      <div class="chip">🎵 YouTube Streaming</div>
+      <div class="chip">💜 Mood Detection</div>
+      <div class="chip">🫧 Floating Bubble</div>
+      <div class="chip">📊 Spotify Wrapped</div>
+      <div class="chip">📥 Offline Mode</div>
+    </div>
+    <div class="hero-cta">
+      <a href="https://t.me/azm101222" target="_blank" class="btn-p">✈️ Beli via Telegram</a>
+      <a href="#screenshots" class="btn-s">📱 Lihat Screenshots</a>
+    </div>
+  </div>
+
+  <div class="hero-r reveal">
+    <div class="hf hf1"><div class="hf-l">Mood</div><div class="hf-v">😌 Chill</div><div class="hf-s">AI auto-detected</div></div>
+    <div class="hf hf2"><div class="hf-l">Diputar bulan ini</div><div class="hf-v">1,248 lagu</div><div class="hf-s">Wrapped style</div></div>
+    <div class="hf hf3"><div class="hf-l">Queue</div><div class="hf-v">🔀 Smart Shuffle</div><div class="hf-s">by mood</div></div>
+    <div class="phone-base hero-phone" style="transform:rotate(2deg)">
+      <div class="notch"></div>
+      <div style="padding:8px 14px">
+        <div style="font-size:9px;color:rgba(255,255,255,.3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px">Now Playing</div>
+        <div style="width:100%;aspect-ratio:1;border-radius:14px;background:linear-gradient(135deg,#1e0a3c,#0a1a3c);display:flex;align-items:center;justify-content:center;font-size:34px;margin-bottom:10px;position:relative;overflow:hidden">
+          <div style="position:absolute;width:90px;height:90px;background:radial-gradient(circle,rgba(167,139,250,.4),transparent 70%);border-radius:50%"></div>🎵
+          <div style="display:flex;gap:2px;align-items:flex-end;height:16px;position:absolute;bottom:8px;left:10px">
+            <div class="vbar" style="height:60%;--d:.5s"></div><div class="vbar" style="height:100%;--d:.7s"></div>
+            <div class="vbar" style="height:40%;--d:.4s"></div><div class="vbar" style="height:80%;--d:.6s"></div>
+            <div class="vbar" style="height:55%;--d:.8s"></div><div class="vbar" style="height:90%;--d:.45s"></div>
+          </div>
+        </div>
+        <div style="font-size:12px;font-weight:600;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Terlalu Lama Sendiri</div>
+        <div style="font-size:10px;color:var(--muted);margin-bottom:8px">Kunto Aji</div>
+        <div style="height:2px;background:rgba(255,255,255,.1);border-radius:1px;margin-bottom:10px"><div style="width:38%;height:100%;background:linear-gradient(90deg,var(--purple),var(--cyan));border-radius:1px"></div></div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div style="width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;font-size:10px">⏮</div>
+          <div style="width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;font-size:10px">🔀</div>
+          <div style="width:38px;height:38px;background:linear-gradient(135deg,var(--purple),var(--cyan));border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;box-shadow:0 4px 16px rgba(124,58,237,.5)">▶</div>
+          <div style="width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;font-size:10px">🔁</div>
+          <div style="width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;font-size:10px">⏭</div>
+        </div>
+      </div>
+      <div class="mini-bar"></div>
+    </div>
+  </div>
+</section>
+
+<!-- SCREENSHOTS -->
+<section class="ss-section" id="screenshots">
+  <div class="section-inner">
+    <div class="section-tag reveal">Screenshots</div>
+    <h2 class="reveal">Lihat tampilan<br>lengkapnya</h2>
+    <p class="sdesc reveal">6 layar utama — klik tab untuk filter tampilan.</p>
+    <div class="ss-tabs reveal">
+      <div class="stab active" onclick="filterSS(this,'all')">✨ Semua</div>
+      <div class="stab" onclick="filterSS(this,'player')">🎵 Player</div>
+      <div class="stab" onclick="filterSS(this,'home')">🏠 Home</div>
+      <div class="stab" onclick="filterSS(this,'mood')">💜 Mood</div>
+      <div class="stab" onclick="filterSS(this,'stats')">📊 Stats</div>
+      <div class="stab" onclick="filterSS(this,'library')">📚 Library</div>
+      <div class="stab" onclick="filterSS(this,'wrapped')">🎁 Wrapped</div>
+    </div>
+    <div class="devices-row" id="devrow">
+
+      <!-- Player -->
+      <div class="dp feat" data-s="player">
+        <div class="phone-base frame">
+          <div class="notch"></div>
+          <div class="sc scp">
+            <div class="sc-h"><span>Now Playing</span><span>···</span></div>
+            <div class="art"><div class="rings"><div class="r r1"></div><div class="r r2"></div></div>🎵<div class="viz"><div class="vbar" style="height:60%;--d:.5s"></div><div class="vbar" style="height:100%;--d:.7s"></div><div class="vbar" style="height:40%;--d:.4s"></div><div class="vbar" style="height:80%;--d:.6s"></div><div class="vbar" style="height:55%;--d:.8s"></div></div></div>
+            <div class="st">Terlalu Lama Sendiri</div>
+            <div class="sa">Kunto Aji • YouTube</div>
+            <div class="pg"><div class="pf" style="width:38%"></div></div>
+            <div class="ct"><div class="cb">⏮</div><div class="cb">🔀</div><div class="cp">▶</div><div class="cb">🔁</div><div class="cb">⏭</div></div>
+          </div>
+          <div class="mini-bar"></div>
+        </div>
+        <div class="dp-lbl hl">🎵 Now Playing</div>
+      </div>
+
+      <!-- Home -->
+      <div class="dp" data-s="home">
+        <div class="phone-base frame">
+          <div class="notch"></div>
+          <div class="sc sch">
+            <div class="gr">Selamat sore,</div>
+            <div class="nm">Zaam 👋</div>
+            <div class="row"><div class="tag">🔥 Trending</div><div class="tag">🎵 Discovery</div><div class="tag">📅 Daily</div></div>
+            <div class="sec">Recently Played</div>
+            <div class="cards">
+              <div class="card"><div class="ca">🎵</div><div class="ct">Topeng</div><div class="cs">Anneth</div></div>
+              <div class="card"><div class="ca">🎶</div><div class="ct">Pupus</div><div class="cs">Dewa 19</div></div>
+              <div class="card"><div class="ca">🎸</div><div class="ct">Aku Bukan</div><div class="cs">Virzha</div></div>
+            </div>
+            <div class="sec">Daily Mix</div>
+            <div class="cards">
+              <div class="card"><div class="ca">🌙</div><div class="ct">Late Night</div><div class="cs">Mix</div></div>
+              <div class="card"><div class="ca">☀️</div><div class="ct">Morning</div><div class="cs">Vibes</div></div>
+            </div>
+          </div>
+          <div class="mini-bar"></div>
+        </div>
+        <div class="dp-lbl">🏠 Home</div>
+      </div>
+
+      <!-- Mood -->
+      <div class="dp" data-s="mood">
+        <div class="phone-base frame">
+          <div class="notch"></div>
+          <div class="sc scm">
+            <div class="mt">Lagi ngerasa gimana?</div>
+            <div class="ms">Pilih mood, kami siapkan lagunya</div>
+            <div class="mg">
+              <div class="mi" style="background:rgba(124,58,237,.15);border-color:rgba(124,58,237,.4)"><span class="me">😌</span><div class="mn" style="color:var(--pl)">Chill</div></div>
+              <div class="mi" style="background:rgba(239,68,68,.08)"><span class="me">💔</span><div class="mn">Sad</div></div>
+              <div class="mi" style="background:rgba(234,179,8,.08)"><span class="me">😄</span><div class="mn">Happy</div></div>
+              <div class="mi" style="background:rgba(239,68,68,.08)"><span class="me">⚡</span><div class="mn">Energetic</div></div>
+              <div class="mi" style="background:rgba(244,114,182,.08)"><span class="me">💕</span><div class="mn">Romance</div></div>
+              <div class="mi" style="background:rgba(6,182,212,.08)"><span class="me">🔥</span><div class="mn">Hype</div></div>
+            </div>
+          </div>
+          <div class="mini-bar"></div>
+        </div>
+        <div class="dp-lbl">💜 Mood</div>
+      </div>
+
+      <!-- Stats -->
+      <div class="dp" data-s="stats">
+        <div class="phone-base frame">
+          <div class="notch"></div>
+          <div class="sc scs">
+            <div class="tt">Statistik Kamu</div>
+            <div class="big">1,248</div>
+            <div class="sub">lagu diputar bulan ini</div>
+            <div class="br"><div class="bl"><span>Kunto Aji</span><span>312x</span></div><div class="bt"><div class="bf" style="width:90%"></div></div></div>
+            <div class="br"><div class="bl"><span>Pamungkas</span><span>241x</span></div><div class="bt"><div class="bf" style="width:70%"></div></div></div>
+            <div class="br"><div class="bl"><span>Tulus</span><span>188x</span></div><div class="bt"><div class="bf" style="width:54%"></div></div></div>
+            <div class="br"><div class="bl"><span>Hindia</span><span>134x</span></div><div class="bt"><div class="bf" style="width:38%"></div></div></div>
+            <div class="br"><div class="bl"><span>Ardhito</span><span>99x</span></div><div class="bt"><div class="bf" style="width:27%"></div></div></div>
+          </div>
+          <div class="mini-bar"></div>
+        </div>
+        <div class="dp-lbl">📊 Stats</div>
+      </div>
+
+      <!-- Library -->
+      <div class="dp" data-s="library">
+        <div class="phone-base frame">
+          <div class="notch"></div>
+          <div class="sc scl">
+            <div class="lt">Library Kamu</div>
+            <div class="li"><div class="la" style="background:rgba(124,58,237,.2)">🌙</div><div><div class="ln">Late Night Vibes</div><div class="lc">24 lagu</div></div></div>
+            <div class="li"><div class="la" style="background:rgba(244,114,182,.2)">💕</div><div><div class="ln">Lagu Galau</div><div class="lc">18 lagu</div></div></div>
+            <div class="li"><div class="la" style="background:rgba(234,179,8,.2)">☀️</div><div><div class="ln">Morning Playlist</div><div class="lc">12 lagu</div></div></div>
+            <div class="li"><div class="la" style="background:rgba(239,68,68,.2)">⚡</div><div><div class="ln">Gym Workout</div><div class="lc">31 lagu</div></div></div>
+            <div class="li"><div class="la" style="background:rgba(16,185,129,.2)">🎸</div><div><div class="ln">Indie Hits</div><div class="lc">9 lagu</div></div></div>
+          </div>
+          <div class="mini-bar"></div>
+        </div>
+        <div class="dp-lbl">📚 Library</div>
+      </div>
+
+      <!-- Wrapped -->
+      <div class="dp" data-s="wrapped">
+        <div class="phone-base frame scw" style="background:linear-gradient(160deg,#1a0a3c,#0a1040,#0a2030)">
+          <div class="notch"></div>
+          <div class="sc" style="position:relative">
+            <div class="yr">2025</div>
+            <div class="wt">Your Wrapped</div>
+            <div class="wb">Tahun yang<br>penuh musik 🎵</div>
+            <div class="wr">
+              <div class="ws"><div class="wv">14.2K</div><div class="wl">Lagu</div></div>
+              <div class="ws"><div class="wv">487</div><div class="wl">Jam dengar</div></div>
+            </div>
+            <div style="font-size:8px;color:rgba(255,255,255,.3);margin-bottom:5px;text-transform:uppercase;letter-spacing:.08em;position:relative;z-index:1">Mood terbanyak</div>
+            <div class="wmr">
+              <div class="wm"><span class="we">😌</span><div class="wn">Chill</div></div>
+              <div class="wm"><span class="we">💕</span><div class="wn">Romance</div></div>
+              <div class="wm"><span class="we">😄</span><div class="wn">Happy</div></div>
+            </div>
+          </div>
+          <div class="mini-bar"></div>
+        </div>
+        <div class="dp-lbl">🎁 Wrapped</div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- INTERACTIVE DEMO -->
+<section class="demo-section" id="demo">
+  <div class="section-inner">
+    <div class="section-tag reveal">Demo Interaktif</div>
+    <h2 class="reveal">Klik & explore<br>tiap fiturnya</h2>
+    <p class="sdesc reveal">Pilih layar yang ingin kamu preview — langsung interaktif.</p>
+    <div class="demo-wrap">
+      <div class="demo-l">
+        <div class="dnav">
+          <div class="di on" onclick="switchDemo(this,'dp')"><div class="di-icon" style="background:rgba(124,58,237,.2)">🎵</div><div class="di-t"><h4>Now Playing</h4><p>Player lengkap dengan visualizer & lirik</p></div></div>
+          <div class="di" onclick="switchDemo(this,'dm')"><div class="di-icon" style="background:rgba(244,114,182,.2)">💜</div><div class="di-t"><h4>Mood Detection</h4><p>Pilih mood, lagu otomatis direkomendasikan</p></div></div>
+          <div class="di" onclick="switchDemo(this,'ds')"><div class="di-icon" style="background:rgba(56,189,248,.2)">📊</div><div class="di-t"><h4>Stats & Analytics</h4><p>Top songs, artis, total waktu dengar</p></div></div>
+          <div class="di" onclick="switchDemo(this,'dw')"><div class="di-icon" style="background:rgba(245,158,11,.2)">🎁</div><div class="di-t"><h4>Spotify Wrapped</h4><p>Rekap tahunan gaya Spotify langsung di app</p></div></div>
+          <div class="di" onclick="switchDemo(this,'dl')"><div class="di-icon" style="background:rgba(16,185,129,.2)">📚</div><div class="di-t"><h4>Playlist Library</h4><p>Buat dan kelola playlist sesukamu</p></div></div>
+        </div>
+      </div>
+      <div class="demo-r">
+        <div class="phone-base demo-phone">
+          <div class="notch"></div>
+          <div class="demo-screens">
+
+            <!-- Demo Player -->
+            <div class="dsc on" id="dp">
+              <div style="font-size:9px;color:rgba(255,255,255,.3);letter-spacing:.1em;text-transform:uppercase;margin:6px 0 10px">Now Playing</div>
+              <div style="width:100%;aspect-ratio:1;border-radius:14px;background:linear-gradient(135deg,#1e0a3c,#0a1a3c);display:flex;align-items:center;justify-content:center;font-size:40px;margin-bottom:10px;position:relative;overflow:hidden">
+                <div style="position:absolute;width:100px;height:100px;background:radial-gradient(circle,rgba(167,139,250,.3),transparent 70%);border-radius:50%"></div>🎵
+                <div style="position:absolute;bottom:8px;left:10px;display:flex;gap:2px;align-items:flex-end;height:16px">
+                  <div class="vbar" style="height:60%;--d:.5s"></div><div class="vbar" style="height:100%;--d:.7s"></div><div class="vbar" style="height:40%;--d:.4s"></div><div class="vbar" style="height:80%;--d:.6s"></div><div class="vbar" style="height:55%;--d:.8s"></div><div class="vbar" style="height:90%;--d:.45s"></div>
+                </div>
+              </div>
+              <div style="font-size:13px;font-weight:600;margin-bottom:2px">Terlalu Lama Sendiri</div>
+              <div style="font-size:10px;color:var(--muted);margin-bottom:10px">Kunto Aji</div>
+              <div style="height:3px;background:rgba(255,255,255,.1);border-radius:2px;margin-bottom:10px"><div style="width:38%;height:100%;background:linear-gradient(90deg,var(--purple),var(--cyan));border-radius:2px"></div></div>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+                <div style="width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;font-size:10px">⏮</div>
+                <div style="width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;font-size:10px">🔀</div>
+                <div style="width:36px;height:36px;background:linear-gradient(135deg,var(--purple),var(--cyan));border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;box-shadow:0 4px 12px rgba(124,58,237,.5)">▶</div>
+                <div style="width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;font-size:10px">🔁</div>
+                <div style="width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;font-size:10px">⏭</div>
+              </div>
+              <div style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:8px 10px">
+                <div style="font-size:8px;color:rgba(255,255,255,.3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px">Lirik</div>
+                <div style="font-size:10px;color:rgba(220,220,240,.7);line-height:1.6">Dan aku terlalu<br>lama sendiri...</div>
+              </div>
+            </div>
+
+            <!-- Demo Mood -->
+            <div class="dsc" id="dm">
+              <div style="font-size:13px;font-weight:600;margin:8px 0 4px">Lagi ngerasa gimana?</div>
+              <div style="font-size:10px;color:var(--muted);margin-bottom:12px">Pilih mood, kita siapkan lagunya 🎵</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px" id="mood-grid">
+                <div class="mood-opt" data-mood="chill" onclick="pickMood(this)" style="background:rgba(124,58,237,.2);border:1px solid rgba(124,58,237,.5);border-radius:12px;padding:12px;text-align:center;cursor:pointer;transition:all .2s"><div style="font-size:22px;margin-bottom:4px">😌</div><div style="font-size:11px;font-weight:500;color:var(--pl)">Chill</div></div>
+                <div class="mood-opt" data-mood="sad" onclick="pickMood(this)" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:12px;text-align:center;cursor:pointer;transition:all .2s"><div style="font-size:22px;margin-bottom:4px">💔</div><div style="font-size:11px;font-weight:500">Sad</div></div>
+                <div class="mood-opt" data-mood="happy" onclick="pickMood(this)" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:12px;text-align:center;cursor:pointer;transition:all .2s"><div style="font-size:22px;margin-bottom:4px">😄</div><div style="font-size:11px;font-weight:500">Happy</div></div>
+                <div class="mood-opt" data-mood="energetic" onclick="pickMood(this)" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:12px;text-align:center;cursor:pointer;transition:all .2s"><div style="font-size:22px;margin-bottom:4px">⚡</div><div style="font-size:11px;font-weight:500">Energetic</div></div>
+                <div class="mood-opt" data-mood="romance" onclick="pickMood(this)" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:12px;text-align:center;cursor:pointer;transition:all .2s"><div style="font-size:22px;margin-bottom:4px">💕</div><div style="font-size:11px;font-weight:500">Romance</div></div>
+                <div class="mood-opt" data-mood="hype" onclick="pickMood(this)" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:12px;text-align:center;cursor:pointer;transition:all .2s"><div style="font-size:22px;margin-bottom:4px">🔥</div><div style="font-size:11px;font-weight:500">Hype</div></div>
+              </div>
+            </div>
+
+            <!-- Demo Stats -->
+            <div class="dsc" id="ds">
+              <div style="font-size:13px;font-weight:600;margin:8px 0 2px">Statistik Kamu</div>
+              <div style="font-family:'Syne',sans-serif;font-size:34px;font-weight:800;background:linear-gradient(135deg,var(--pl),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1;margin-bottom:2px">1,248</div>
+              <div style="font-size:10px;color:var(--muted);margin-bottom:12px">lagu diputar bulan ini</div>
+              <div style="font-size:9px;color:rgba(255,255,255,.3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px">Top Artis</div>
+              <div style="margin-bottom:7px"><div style="display:flex;justify-content:space-between;font-size:9px;margin-bottom:3px"><span>Kunto Aji</span><span style="color:var(--pl)">312x</span></div><div style="height:4px;background:rgba(255,255,255,.08);border-radius:2px"><div style="width:90%;height:100%;background:linear-gradient(90deg,var(--purple),var(--cyan));border-radius:2px"></div></div></div>
+              <div style="margin-bottom:7px"><div style="display:flex;justify-content:space-between;font-size:9px;margin-bottom:3px"><span>Pamungkas</span><span style="color:var(--pl)">241x</span></div><div style="height:4px;background:rgba(255,255,255,.08);border-radius:2px"><div style="width:70%;height:100%;background:linear-gradient(90deg,var(--purple),var(--cyan));border-radius:2px"></div></div></div>
+              <div style="margin-bottom:7px"><div style="display:flex;justify-content:space-between;font-size:9px;margin-bottom:3px"><span>Tulus</span><span style="color:var(--pl)">188x</span></div><div style="height:4px;background:rgba(255,255,255,.08);border-radius:2px"><div style="width:54%;height:100%;background:linear-gradient(90deg,var(--purple),var(--cyan));border-radius:2px"></div></div></div>
+              <div style="margin-bottom:7px"><div style="display:flex;justify-content:space-between;font-size:9px;margin-bottom:3px"><span>Hindia</span><span style="color:var(--pl)">134x</span></div><div style="height:4px;background:rgba(255,255,255,.08);border-radius:2px"><div style="width:38%;height:100%;background:linear-gradient(90deg,var(--purple),var(--cyan));border-radius:2px"></div></div></div>
+            </div>
+
+            <!-- Demo Wrapped -->
+            <div class="dsc" id="dw" style="background:linear-gradient(160deg,#1a0a3c,#0a1040,#0a2030)">
+              <div style="font-family:'Syne',sans-serif;font-size:48px;font-weight:800;opacity:.1;position:absolute;top:8px;right:8px;line-height:1">2025</div>
+              <div style="font-size:9px;color:rgba(255,255,255,.4);letter-spacing:.1em;text-transform:uppercase;margin:10px 0 4px;position:relative;z-index:1">Your Wrapped</div>
+              <div style="font-family:'Syne',sans-serif;font-size:20px;font-weight:800;position:relative;z-index:1;margin-bottom:14px;line-height:1.2">Tahun yang<br>penuh musik 🎵</div>
+              <div style="display:flex;gap:7px;margin-bottom:10px;position:relative;z-index:1">
+                <div style="flex:1;background:rgba(255,255,255,.1);border-radius:10px;padding:8px;text-align:center"><div style="font-family:'Syne',sans-serif;font-size:16px;font-weight:700;background:linear-gradient(135deg,var(--pl),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">14.2K</div><div style="font-size:8px;color:rgba(255,255,255,.35);margin-top:2px">Lagu</div></div>
+                <div style="flex:1;background:rgba(255,255,255,.1);border-radius:10px;padding:8px;text-align:center"><div style="font-family:'Syne',sans-serif;font-size:16px;font-weight:700;background:linear-gradient(135deg,var(--pl),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">487</div><div style="font-size:8px;color:rgba(255,255,255,.35);margin-top:2px">Jam</div></div>
+              </div>
+              <div style="font-size:9px;color:rgba(255,255,255,.35);margin-bottom:6px;text-transform:uppercase;letter-spacing:.08em;position:relative;z-index:1">Mood terbanyak</div>
+              <div style="display:flex;gap:5px;position:relative;z-index:1">
+                <div style="flex:1;background:rgba(255,255,255,.08);border-radius:8px;padding:6px;text-align:center"><div style="font-size:18px">😌</div><div style="font-size:8px;color:rgba(255,255,255,.4)">Chill</div></div>
+                <div style="flex:1;background:rgba(255,255,255,.08);border-radius:8px;padding:6px;text-align:center"><div style="font-size:18px">💕</div><div style="font-size:8px;color:rgba(255,255,255,.4)">Romance</div></div>
+                <div style="flex:1;background:rgba(255,255,255,.08);border-radius:8px;padding:6px;text-align:center"><div style="font-size:18px">😄</div><div style="font-size:8px;color:rgba(255,255,255,.4)">Happy</div></div>
+              </div>
+            </div>
+
+            <!-- Demo Library -->
+            <div class="dsc" id="dl">
+              <div style="font-size:13px;font-weight:600;margin:8px 0 10px">Library Kamu</div>
+              <div id="lib-items">
+                <div class="lib-item" onclick="this.style.background='rgba(124,58,237,.12)';setTimeout(()=>this.style.background='rgba(255,255,255,.04)',600)" style="display:flex;align-items:center;gap:8px;padding:8px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);margin-bottom:6px;cursor:pointer;transition:background .2s"><div style="width:34px;height:34px;border-radius:8px;background:rgba(124,58,237,.2);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">🌙</div><div style="flex:1"><div style="font-size:11px;font-weight:500">Late Night Vibes</div><div style="font-size:9px;color:var(--muted)">24 lagu</div></div><div style="font-size:12px;color:rgba(255,255,255,.2)">›</div></div>
+                <div class="lib-item" onclick="this.style.background='rgba(244,114,182,.12)';setTimeout(()=>this.style.background='rgba(255,255,255,.04)',600)" style="display:flex;align-items:center;gap:8px;padding:8px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);margin-bottom:6px;cursor:pointer;transition:background .2s"><div style="width:34px;height:34px;border-radius:8px;background:rgba(244,114,182,.2);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">💕</div><div style="flex:1"><div style="font-size:11px;font-weight:500">Lagu Galau</div><div style="font-size:9px;color:var(--muted)">18 lagu</div></div><div style="font-size:12px;color:rgba(255,255,255,.2)">›</div></div>
+                <div class="lib-item" onclick="this.style.background='rgba(234,179,8,.12)';setTimeout(()=>this.style.background='rgba(255,255,255,.04)',600)" style="display:flex;align-items:center;gap:8px;padding:8px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);margin-bottom:6px;cursor:pointer;transition:background .2s"><div style="width:34px;height:34px;border-radius:8px;background:rgba(234,179,8,.2);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">☀️</div><div style="flex:1"><div style="font-size:11px;font-weight:500">Morning Playlist</div><div style="font-size:9px;color:var(--muted)">12 lagu</div></div><div style="font-size:12px;color:rgba(255,255,255,.2)">›</div></div>
+                <div class="lib-item" onclick="this.style.background='rgba(239,68,68,.12)';setTimeout(()=>this.style.background='rgba(255,255,255,.04)',600)" style="display:flex;align-items:center;gap:8px;padding:8px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);margin-bottom:6px;cursor:pointer;transition:background .2s"><div style="width:34px;height:34px;border-radius:8px;background:rgba(239,68,68,.2);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">⚡</div><div style="flex:1"><div style="font-size:11px;font-weight:500">Gym Workout</div><div style="font-size:9px;color:var(--muted)">31 lagu</div></div><div style="font-size:12px;color:rgba(255,255,255,.2)">›</div></div>
+              </div>
+            </div>
+
+          </div>
+          <div class="mini-bar"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="feat-section" id="fitur">
+  <div class="section-inner">
+    <div class="section-tag reveal">Fitur</div>
+    <h2 class="reveal">Production-ready,<br>bukan template biasa</h2>
+    <p class="sdesc reveal">MVVM + Hilt, ~12.000 baris Kotlin, banyak edge case sudah dihandle & terdokumentasi.</p>
+    <div class="feat-grid">
+      <div class="fc reveal"><div class="fi" style="background:rgba(124,58,237,.15)">🎵</div><h3>YouTube Streaming</h3><p>Via NewPipe Extractor tanpa API key berbayar. Gratis selamanya.</p></div>
+      <div class="fc reveal"><div class="fi" style="background:rgba(244,114,182,.15)">💜</div><h3>Mood Detection AI</h3><p>6 mood dengan weighted keyword scoring + history-based detection + smart shuffle.</p></div>
+      <div class="fc reveal"><div class="fi" style="background:rgba(56,189,248,.15)">🫧</div><h3>Floating Bubble</h3><p>Overlay player bisa di-drag, tetap aktif di atas aplikasi lain.</p></div>
+      <div class="fc reveal"><div class="fi" style="background:rgba(245,158,11,.15)">📊</div><h3>Spotify Wrapped</h3><p>Rekap per periode: top songs, artis, waktu dengar, distribusi mood.</p></div>
+      <div class="fc reveal"><div class="fi" style="background:rgba(16,185,129,.15)">📥</div><h3>Download & Offline</h3><p>Download ke storage lokal, playback otomatis dari file lokal.</p></div>
+      <div class="fc reveal"><div class="fi" style="background:rgba(239,68,68,.15)">⏱️</div><h3>Sleep Timer & Speed</h3><p>Sleep timer, speed control, share Now Playing Card ke WA/IG.</p></div>
+      <div class="fc reveal"><div class="fi" style="background:rgba(124,58,237,.15)">🎛️</div><h3>Audio Visualizer</h3><p>Real-time dari AudioSession ID dengan fallback animasi otomatis.</p></div>
+      <div class="fc reveal"><div class="fi" style="background:rgba(56,189,248,.15)">📅</div><h3>Daily Mix Generator</h3><p>Playlist harian otomatis dari histori user + trending YouTube.</p></div>
+      <div class="fc reveal"><div class="fi" style="background:rgba(244,114,182,.15)">📚</div><h3>Playlist CRUD</h3><p>Buat, edit, hapus playlist. Semua tersimpan di Room DB lokal.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- TECH -->
+<section class="tech-section">
+  <div class="section-inner">
+    <div class="section-tag reveal">Tech Stack</div>
+    <h2 class="reveal">Teknologi modern,<br>kode bersih</h2>
+    <p class="sdesc reveal">Semua library stable release — tidak ada dependency eksperimental.</p>
+    <div class="tech-grid reveal">
+      <div class="tp">🟣 Kotlin</div><div class="tp">🎨 Jetpack Compose</div><div class="tp">🎵 ExoPlayer / Media3</div>
+      <div class="tp">💉 Hilt (DI)</div><div class="tp">🗄️ Room Database</div><div class="tp">📡 NewPipe Extractor</div>
+      <div class="tp">🔄 Coroutines + Flow</div><div class="tp">🏗️ MVVM Architecture</div><div class="tp">🖼️ Coil</div>
+      <div class="tp">🧭 Navigation Compose</div><div class="tp">📳 MediaSession</div><div class="tp">🔒 FileProvider</div>
+    </div>
+  </div>
+</section>
+
+<!-- PRICE -->
+<section class="price-section" id="harga">
+  <div class="section-inner" style="text-align:center">
+    <div class="section-tag reveal" style="justify-content:center">Harga</div>
+    <h2 class="reveal">Satu harga,<br>akses selamanya</h2>
+    <p class="sdesc reveal" style="margin:0 auto 48px">Non-eksklusif — bebas kembangkan sendiri.</p>
+    <div class="price-card reveal">
+      <div class="pp">🔥 Source Code</div>
+      <div class="pa">Rp 99K</div>
+      <div class="pn">Bayar sekali, milik selamanya</div>
+      <div class="pi">
+        <div class="pit">Full source code 65 file Kotlin (~12.000 baris)</div>
+        <div class="pit">Semua fitur termasuk tanpa biaya tambahan</div>
+        <div class="pit">Tidak perlu API key berbayar</div>
+        <div class="pit">Bebas modifikasi & kembangkan sendiri</div>
+        <div class="pit">Support setup via Telegram</div>
+      </div>
+      <a href="https://t.me/azm101222" target="_blank" class="btn-buy">✈️ Beli Sekarang via Telegram</a>
+    </div>
+  </div>
+</section>
+
+<!-- CONTACT -->
+<section class="contact-section" id="kontak">
+  <div class="section-inner">
+    <div class="section-tag reveal">Kontak</div>
+    <h2 class="reveal">Ada pertanyaan?<br>Langsung chat!</h2>
+    <p class="sdesc reveal">Respon cepat via Telegram. Bisa tanya fitur, setup, atau negosiasi.</p>
+    <div class="ccard reveal">
+      <div class="tg-ic">✈️</div>
+      <div class="ci">
+        <h3>@azm101222</h3>
+        <p>Hubungi untuk pembelian, pertanyaan teknis, atau info lebih lanjut tentang Zmusic source code.</p>
+        <a href="https://t.me/azm101222" target="_blank" class="btn-tg">✈️ Chat di Telegram</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <p>© 2025 Zmusic — Android Music Player Source Code &nbsp;·&nbsp; <a href="https://t.me/azm101222" target="_blank">@azm101222</a></p>
+</footer>
+<div class="rainbow-bar"></div>
+
+<script>
+  // Scroll reveal
+  const obs = new IntersectionObserver(es => es.forEach(e => { if(e.isIntersecting){e.target.classList.add('vis');obs.unobserve(e.target);} }), {threshold:.1});
+  document.querySelectorAll('.reveal').forEach(el => obs.observe(el));
+
+  // Screenshot filter
+  function filterSS(tab, type) {
+    document.querySelectorAll('.stab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    document.querySelectorAll('.dp').forEach(d => {
+      d.style.opacity = (type === 'all' || d.dataset.s === type) ? '1' : '0.15';
+    });
+  }
+
+  // Demo switch
+  function switchDemo(el, id) {
+    document.querySelectorAll('.di').forEach(i => i.classList.remove('on'));
+    el.classList.add('on');
+    document.querySelectorAll('.dsc').forEach(s => s.classList.remove('on'));
+    const t = document.getElementById(id);
+    if(t) t.classList.add('on');
+  }
+
+  // Mood picker
+  function pickMood(el) {
+    document.querySelectorAll('.mood-opt').forEach(m => {
+      m.style.background = 'rgba(255,255,255,.04)';
+      m.style.borderColor = 'rgba(255,255,255,.08)';
+      m.querySelector('div:last-child').style.color = '';
+    });
+    el.style.background = 'rgba(124,58,237,.2)';
+    el.style.borderColor = 'rgba(124,58,237,.5)';
+    el.querySelector('div:last-child').style.color = 'var(--pl)';
+  }
+</script>
+</body>
+</html>
