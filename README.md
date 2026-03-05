@@ -1,164 +1,173 @@
-# 🎵 Zmusic
+# 🎵 Zmusic — Android Music Player
 
-**Aplikasi streaming musik open-source untuk Android** — memutar jutaan lagu dari YouTube tanpa iklan, tanpa akun, dan sepenuhnya gratis.
+<p align="center">
+  <img src="https://img.shields.io/badge/Platform-Android-brightgreen?style=flat-square&logo=android"/>
+  <img src="https://img.shields.io/badge/Language-Kotlin-7c3aed?style=flat-square&logo=kotlin"/>
+  <img src="https://img.shields.io/badge/UI-Jetpack%20Compose-38bdf8?style=flat-square&logo=jetpackcompose"/>
+  <img src="https://img.shields.io/badge/Architecture-MVVM-f472b6?style=flat-square"/>
+  <img src="https://img.shields.io/badge/Min%20SDK-26%20(Android%208.0)-orange?style=flat-square"/>
+</p>
 
-Dibangun dengan Kotlin, Jetpack Compose, dan Material 3. Menggunakan [NewPipeExtractor](https://github.com/TeamNewPipe/NewPipeExtractor) sebagai backend untuk mengakses konten YouTube secara publik.
-
-> Made with ♪ in Indonesia
-
----
-
-## Fitur
-
-**Streaming & Pemutar**
-- Streaming musik langsung dari YouTube tanpa iklan
-- Pemutar lengkap dengan kontrol play/pause, next, previous, seek ±10 detik
-- Mini player bar yang tetap tampil saat navigasi antar halaman
-- Antrian lagu (queue) dengan mode shuffle
-- Kontrol kecepatan pemutaran
-- Download lagu untuk didengarkan offline
-
-**Pencarian & Penemuan**
-- Pencarian lagu via YouTube Music
-- Halaman Home dengan konten trending dan rekomendasi
-- Halaman Explore untuk jelajahi musik berdasarkan genre
-- Halaman Trending — lagu-lagu yang sedang populer di YouTube Indonesia
-- Infinite scroll — konten terus dimuat saat scroll ke bawah
-
-**Mood & Personalisasi**
-- 6 mode mood: 😊 Happy, 😢 Sad, ⚡ Energetic, 😌 Chill, ❤️ Romance, 🔥 Hype
-- Deteksi mood otomatis berdasarkan judul dan artis lagu
-- Rekomendasi lagu sesuai mood yang dipilih
-
-**Lirik**
-- Lirik otomatis dari LRCLIB (synced dan plain text)
-- Synced lyrics — lirik berjalan mengikuti waktu lagu
-- Terjemahan lirik ke Bahasa Indonesia via MyMemory API
-
-**Koleksi & Statistik**
-- Buat dan kelola playlist tanpa batas
-- Riwayat lagu yang pernah diputar
-- Statistik: total play, total durasi, top lagu, top artis, distribusi mood
-- Long press lagu untuk tambahkan ke playlist
-
-**Desain**
-- UI Material 3 dengan tema gelap dan terang (mengikuti sistem)
-- Desain glassmorphism pada kartu dan navigasi
-- Floating pill bottom navigation
-- Edge-to-edge display
-- Lokalisasi Bahasa Indonesia
+<p align="center">
+  Aplikasi pemutar musik Android berbasis YouTube streaming — mood detection, Spotify Wrapped, floating bubble player, dan masih banyak lagi.
+</p>
 
 ---
 
-## Tech Stack
+## ✨ Fitur Utama
 
-| Komponen | Library |
-|----------|---------|
-| Bahasa | Kotlin |
-| UI Framework | Jetpack Compose + Material 3 |
-| Arsitektur | MVVM + Hilt (Dependency Injection) |
-| Database | Room |
-| Media Player | Media3 / ExoPlayer |
-| Ekstraksi YouTube | NewPipeExtractor v0.26.0 |
-| HTTP Client | OkHttp 4.12.0 |
-| Image Loader | Coil Compose |
-| Async | Kotlin Coroutines + Flow |
-| Build | Gradle KTS + KSP |
+### 🎵 Core Playback
+- Streaming audio via **NewPipe Extractor** — tanpa API key berbayar
+- Background playback dengan **ExoPlayer + MediaSession**
+- Queue management: shuffle, repeat (off / one / all), skip prev/next
+- **Prefetch** lagu berikutnya (cache 5 menit)
+- Retry otomatis 3x dengan exponential backoff saat stream gagal
+- Audio focus management (pause saat telepon, duck saat notifikasi)
+- WiFi Lock + Wake Lock agar tidak putus saat layar mati
+
+### 🫧 Floating Bubble Player
+- Overlay bubble yang bisa di-drag ke mana saja
+- Expand jadi mini player dengan seekbar, prev/next, play/pause
+- Tetap aktif di atas aplikasi lain
+
+### 💜 Mood System
+- 6 mood: `SAD` `ROMANCE` `HAPPY` `CHILL` `ENERGETIC` `HYPE`
+- Deteksi otomatis dari judul + nama artis (weighted keyword scoring)
+- Deteksi dari riwayat putar (session-based history)
+- Smart shuffle berdasarkan kompatibilitas mood
+
+### 📊 Stats & Wrapped
+- Rekap ala **Spotify Wrapped** per periode
+- Top songs, top artists, total waktu dengar
+- Distribusi mood, recently played
+
+### 📥 Download & Offline
+- Download lagu ke storage lokal
+- Playback otomatis dari file lokal kalau sudah didownload
+
+### 🎛️ Fitur Tambahan
+- Audio Visualizer real-time (fallback animasi jika permission ditolak)
+- Sleep Timer
+- Playback Speed Control
+- Share **Now Playing Card** ke WA/IG/dll
+- Daily Mix Generator otomatis dari histori user
+- Playlist CRUD (buat, edit, hapus, tambah/hapus lagu)
+- Riwayat pencarian
+- Lirik support
 
 ---
 
-## Persyaratan
+## 🏗️ Tech Stack
 
-- Android 8.0+ (API 26 — Android Oreo) hingga Android 15
-- Koneksi internet untuk streaming (kecuali lagu yang sudah didownload)
+| Layer | Library |
+|---|---|
+| UI | Jetpack Compose |
+| Architecture | MVVM + Hilt (DI) |
+| Audio Engine | ExoPlayer / Media3 |
+| YouTube Source | NewPipe Extractor |
+| Database | Room (SQLite) |
+| Async | Coroutines + Flow |
+| Image Loading | Coil |
+| Navigation | Navigation Compose |
 
 ---
 
-## Struktur Project
+## 📁 Struktur Project
 
 ```
 app/src/main/kotlin/com/zaaam/Zmusic/
-├── ZmusicApp.kt                  # Application class + NewPipe init
+│
 ├── data/
-│   ├── MusicRepository.kt        # Logika utama: search, stream, trending, mood
-│   ├── LyricsRepository.kt       # Fetch lirik dari LRCLIB + terjemahan
-│   ├── NewPipeDownloader.kt      # OkHttp bridge untuk NewPipeExtractor
-│   └── local/
-│       ├── AppDatabase.kt         # Room database (v3)
-│       ├── SongDao.kt
+│   ├── LyricsRepository.kt
+│   ├── MilestoneRepository.kt
+│   ├── MusicRepository.kt          # Core: search, stream, mood, history
+│   ├── NewPipeDownloader.kt
+│   ├── SettingsRepository.kt
+│   └── local/                      # Room DAO & Database
+│       ├── AppDatabase.kt
+│       ├── PlayHistoryDao.kt
 │       ├── PlaylistDao.kt
-│       └── PlayHistoryDao.kt
-├── di/
-│   └── AppModule.kt              # Hilt dependency injection module
-├── model/
-│   ├── Song.kt
-│   ├── Playlist.kt
-│   ├── Mood.kt                   # 6 enum mood + query pencarian
-│   ├── Lyrics.kt
-│   ├── PlayHistory.kt
-│   └── entity/                   # Room entities + query result classes
+│       ├── SearchHistoryDao.kt
+│       └── SongDao.kt
+│
+├── model/                          # Data classes & entities
+│
 ├── service/
-│   └── MusicService.kt           # MediaSessionService + foreground player
-├── util/
-│   ├── QueueManager.kt           # Manajemen antrian lagu + shuffle
-│   ├── AudioDownloadManager.kt   # Download manager dengan progress tracking
-│   └── Extensions.kt             # Format durasi (mm:ss, jam menit)
-└── ui/
-    ├── MainActivity.kt           # Entry point + navigasi + floating nav bar
-    ├── theme/ZmusicTheme.kt      # Warna, tipografi, glass tokens
-    ├── home/                     # HomeScreen + ViewModel (discovery, infinite scroll)
-    ├── search/                   # SearchScreen + ViewModel
-    ├── player/                   # PlayerScreen + ViewModel (lyrics, download, speed)
-    ├── library/                  # LibraryScreen, PlaylistDetail + ViewModel
-    ├── trending/                 # TrendingScreen + ViewModel
-    ├── explore/                  # ExploreScreen + ViewModel (genre-based)
-    ├── mood/                     # MoodScreen + ViewModel
-    ├── stats/                    # StatsScreen + ViewModel
-    ├── recent/                   # RecentlyPlayedScreen + ViewModel
-    ├── about/                    # AboutScreen + DevScreen
-    └── components/               # MiniPlayerBar, SongItem, AlbumArt, GlassCard
+│   ├── MusicService.kt             # MediaSessionService + ExoPlayer
+│   └── FloatingPlayerService.kt    # Floating bubble overlay
+│
+├── ui/
+│   ├── home/                       # Home screen + ViewModel
+│   ├── player/                     # Full player screen (1083 baris)
+│   ├── search/                     # Search + history
+│   ├── explore/                    # Explore by genre/mood
+│   ├── library/                    # Playlist management
+│   ├── mood/                       # Mood screen
+│   ├── trending/                   # Trending screen
+│   ├── recent/                     # Recently played
+│   ├── stats/                      # Statistik lengkap
+│   ├── wrapped/                    # Spotify Wrapped style
+│   ├── settings/
+│   ├── about/
+│   └── components/                 # Shared UI components
+│
+└── util/
+    ├── AudioDownloadManager.kt
+    ├── AudioVisualizerView.kt
+    ├── DailyMixGenerator.kt
+    ├── NowPlayingCardGenerator.kt
+    ├── QueueManager.kt
+    └── SleepTimerManager.kt
 ```
 
 ---
 
-## Disclaimer
+## 🚀 Cara Setup
 
-Zmusic adalah aplikasi pemutar musik open-source yang bersifat independen dan **TIDAK** berafiliasi, didukung, disponsori, atau disetujui oleh YouTube™, Google LLC, Spotify™, Spotify AB, atau entitas lain manapun.
+1. **Clone / download** project ini
+2. Buka dengan **Android Studio** (versi Hedgehog atau lebih baru)
+3. Tunggu Gradle sync selesai
+4. **Build & Run** ke emulator atau device fisik (Android 8.0+)
 
-Semua merek dagang, nama layanan, dan logo yang disebutkan adalah milik dari pemiliknya masing-masing.
-
-Aplikasi ini menggunakan NewPipeExtractor sebagai library pihak ketiga untuk mengakses konten yang tersedia secara publik. Pengembang tidak bertanggung jawab atas penggunaan yang melanggar ketentuan layanan pihak ketiga.
-
-**Aplikasi ini GRATIS dan tidak diperjualbelikan dalam bentuk apapun.** Jika kamu mendapatkan aplikasi ini dengan membayar, kamu telah ditipu.
-
----
-
-## Kontak & Dukungan
-
-- **Telegram:** [@azm101222](https://t.me/azm101222) — Bug report & saran
-- **Saluran WhatsApp:** [Zmusic Updates](https://whatsapp.com/channel/0029Vb7ZuEK3QxRtvlO89u0u)
-- **Donasi:** [Saweria](https://saweria.co/Zsmm) — Dukung pengembangan Zmusic ❤
+> **Note:** Tidak perlu setup API key apapun. YouTube streaming berjalan via NewPipe Extractor secara gratis.
 
 ---
 
-## Lisensi
+## 📋 Requirements
 
-```
-Copyright © 2025 Zaaam
+- Android Studio Hedgehog+
+- JDK 17+
+- Android SDK 26+ (target SDK 34)
+- Koneksi internet untuk streaming
 
-Zmusic dilisensikan di bawah GNU General Public License v3.0.
-Lihat file LICENSE untuk detail lengkap.
-```
+---
 
-### Library Pihak Ketiga
+## 📱 Permission yang Dibutuhkan
 
-| Library | Lisensi |
-|---------|---------|
-| NewPipeExtractor | GPL-3.0 |
-| ExoPlayer (Media3) | Apache-2.0 |
-| Jetpack Compose | Apache-2.0 |
-| Hilt (Dagger) | Apache-2.0 |
-| Room Database | Apache-2.0 |
-| OkHttp | Apache-2.0 |
-| Coil | Apache-2.0 |
-| Kotlin Coroutines | Apache-2.0 |
+| Permission | Keperluan |
+|---|---|
+| `INTERNET` | Streaming & search YouTube |
+| `FOREGROUND_SERVICE` | Background music playback |
+| `WAKE_LOCK` | Cegah CPU sleep saat layar mati |
+| `SYSTEM_ALERT_WINDOW` | Floating bubble player |
+| `RECORD_AUDIO` | Audio visualizer real-time |
+
+---
+
+## 💰 Source Code
+
+> Source code ini tersedia untuk dibeli. Cocok untuk dijadikan base project aplikasi musik Android kamu sendiri.
+
+**Harga: Rp 99.000** — bayar sekali, bebas dikembangkan.
+
+📩 **Kontak pembelian:** [@azm101222](https://t.me/azm101222) di Telegram
+
+---
+
+## 📄 License
+
+Source code ini dijual untuk penggunaan pribadi & komersial. Tidak untuk didistribusikan ulang secara gratis.
+
+---
+
+<p align="center">Made with 💜 using Kotlin & Jetpack Compose</p>
